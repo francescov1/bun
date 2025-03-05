@@ -4466,6 +4466,9 @@ pub const VirtualMachine = struct {
         pub fn ipc(this: *IPCInstance) ?*IPC.IPCData {
             return &this.data;
         }
+        pub fn getGlobalThis(this: *IPCInstance) ?*JSGlobalObject {
+            return this.globalThis;
+        }
 
         pub fn handleIPCMessage(this: *IPCInstance, message: IPC.DecodedIPCMessage) void {
             JSC.markBinding(@src());
@@ -4584,7 +4587,7 @@ pub const VirtualMachine = struct {
             },
         };
 
-        instance.data.writeVersionPacket();
+        instance.data.writeVersionPacket(this.global);
 
         return instance;
     }
