@@ -809,8 +809,19 @@ JSC::EncodedJSValue INVALID_ARG_VALUE(JSC::ThrowScope& throwScope, JSC::JSGlobal
 // for validateOneOf
 JSC::EncodedJSValue INVALID_ARG_VALUE(JSC::ThrowScope& throwScope, JSC::JSGlobalObject* globalObject, JSC::JSValue name, JSC::JSValue value, WTF::ASCIILiteral reason, JSC::JSArray* oneOf)
 {
+    JSString* nameString = jsDynamicCast<JSString*>(name.asCell());
+    ASCIILiteral type = "argument"_s;
+    if (nameString) {
+        auto str = nameString->view(globalObject);
+        if (str->contains('.')) {
+            type = "property"_s;
+        }
+    }
     WTF::StringBuilder builder;
-    builder.append("The argument '"_s);
+
+    builder.append("The "_s);
+    builder.append(type);
+    builder.append(" '"_s);
     JSValueToStringSafe(globalObject, builder, name);
     RETURN_IF_EXCEPTION(throwScope, {});
 
