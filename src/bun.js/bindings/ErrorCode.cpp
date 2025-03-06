@@ -509,12 +509,29 @@ void addParameter(WTF::StringBuilder& result, const StringView& arg_name)
     }
 }
 
+bool isType(const StringView& type)
+{
+    return type == "string"_s
+        || type == "function"_s
+        || type == "number"_s
+        || type == "object"_s
+        || type == "Function"_s
+        || type == "Object"_s
+        || type == "boolean"_s
+        || type == "bigint"_s
+        || type == "symbol"_s;
+}
+
 WTF::String ERR_INVALID_ARG_TYPE(JSC::ThrowScope& scope, JSC::JSGlobalObject* globalObject, const StringView& arg_name, const StringView& expected_type, JSValue actual_value)
 {
     WTF::StringBuilder result;
     result.append("The "_s);
     addParameter(result, arg_name);
-    result.append(" must be of type "_s);
+    if (isType(expected_type)) {
+        result.append(" must be of type "_s);
+    } else {
+        result.append(" must be an instance of "_s);
+    }
     result.append(expected_type);
     result.append(". Received "_s);
     determineSpecificType(JSC::getVM(globalObject), globalObject, result, actual_value);
