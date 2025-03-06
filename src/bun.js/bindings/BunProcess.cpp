@@ -1037,12 +1037,15 @@ extern "C" int Bun__handleUnhandledRejection(JSC::JSGlobalObject* lexicalGlobalO
 extern "C" void Bun__setChannelRef(GlobalObject* globalObject, bool enabled)
 {
     auto process = jsCast<Process*>(globalObject->processObject());
+    bool prev = process->wrapped().m_hasIPCRef;
     process->wrapped().m_hasIPCRef = enabled;
 
-    if (enabled) {
-        process->scriptExecutionContext()->refEventLoop();
-    } else {
-        process->scriptExecutionContext()->unrefEventLoop();
+    if (prev != enabled) {
+        if (enabled) {
+            process->scriptExecutionContext()->refEventLoop();
+        } else {
+            process->scriptExecutionContext()->unrefEventLoop();
+        }
     }
 }
 extern "C" void Bun__ensureSignalHandler();
