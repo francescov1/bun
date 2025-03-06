@@ -969,7 +969,11 @@ function normalizeSpawnArguments(file, args, options) {
   }
 
   // Handle argv0
-  ArrayPrototypeUnshift.$call(args, file);
+  if (typeof options.argv0 === "string") {
+    ArrayPrototypeUnshift.$call(args, options.argv0);
+  } else {
+    ArrayPrototypeUnshift.$call(args, file);
+  }
 
   const env = options.env || process.env;
   const envPairs = {};
@@ -1248,25 +1252,20 @@ class ChildProcess extends EventEmitter {
     validateOneOf(options.serialization, "options.serialization", [undefined, "json", "advanced"]);
     const serialization = options.serialization || "json";
 
-    validateString(options.file, "options.file");
-    // NOTE: This is confusing... So node allows you to pass a file name
-    // But also allows you to pass a command in the args and it should execute
-    var file;
-    file = this.spawnfile = options.file;
-
-    var spawnargs;
-    if (options.args == null) {
-      spawnargs = this.spawnargs = [];
-    } else {
-      validateArray(options.args, "options.args");
-      spawnargs = this.spawnargs = options.args;
-    }
-
     const stdio = options.stdio || ["pipe", "pipe", "pipe"];
     const bunStdio = getBunStdioFromOptions(stdio);
-    const argv0 = options.argv0 || file;
 
     const has_ipc = $isJSArray(stdio) && stdio.includes("ipc");
+
+    // validate options.envPairs but only if has_ipc. for some reason.
+    if (has_ipc) {
+      if (options.envPairs === undefined) {
+        options.envPairs = [];
+      } else {
+        validateArray(options.envPairs, "options.envPairs");
+      }
+    }
+
     var env = options.envPairs || process.env;
 
     const detachedOption = options.detached;
@@ -1275,9 +1274,25 @@ class ChildProcess extends EventEmitter {
     const stdioCount = stdio.length;
     const hasSocketsToEagerlyLoad = stdioCount >= 3;
 
+    validateString(options.file, "options.file");
+    var file;
+    file = this.spawnfile = options.file;
+
+    var spawnargs;
+    if (options.args === undefined) {
+      spawnargs = this.spawnargs = [];
+      // how is this allowed?
+    } else {
+      validateArray(options.args, "options.args");
+      spawnargs = this.spawnargs = options.args;
+    }
+    // normalizeSpawnargs has already prepended argv0 to the spawnargs array
+    // Bun.spawn() expects cmd[0] to be the command to run, and argv0 to replace the first arg when running the command,
+    // so we have to set argv0 to spawnargs[0] and cmd[0] to file
+
     try {
       this.#handle = Bun.spawn({
-        cmd: spawnargs,
+        cmd: [file, ...Array.prototype.slice.$call(spawnargs, 1)],
         stdio: bunStdio,
         cwd: options.cwd || undefined,
         env: env,
@@ -1305,7 +1320,7 @@ class ChildProcess extends EventEmitter {
         ipc: has_ipc ? this.#emitIpcMessage.bind(this) : undefined,
         onDisconnect: has_ipc ? ok => this.#onDisconnect(ok) : undefined,
         serialization,
-        argv0,
+        argv0: spawnargs[0],
         windowsHide: !!options.windowsHide,
         windowsVerbatimArguments: !!options.windowsVerbatimArguments,
       });
