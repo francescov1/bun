@@ -976,7 +976,6 @@ function normalizeSpawnArguments(file, args, options) {
   }
 
   const env = options.env || process.env;
-  const envPairs = {};
 
   // // process.env.NODE_V8_COVERAGE always propagates, making it possible to
   // // collect coverage for programs that spawn with white-listed environment.
@@ -1005,7 +1004,6 @@ function normalizeSpawnArguments(file, args, options) {
     if (value !== undefined) {
       validateArgumentNullCheck(key, `options.env['${key}']`);
       validateArgumentNullCheck(value, `options.env['${key}']`);
-      envPairs[key] = value;
     }
   }
 
@@ -1016,7 +1014,6 @@ function normalizeSpawnArguments(file, args, options) {
     args,
     cwd,
     detached: !!options.detached,
-    envPairs,
     file,
     windowsHide: !!options.windowsHide,
     windowsVerbatimArguments: !!windowsVerbatimArguments,
@@ -1036,6 +1033,15 @@ function checkExecSyncError(ret, args, cmd?) {
     err = genericNodeError(msg, ret);
   }
   return err;
+}
+function parseEnvPairs(envPairs: string[] | undefined): Record<string, string> | undefined {
+  if (!envPairs) return undefined;
+  const resEnv = {};
+  for (const line of envPairs) {
+    const [key, ...value] = line.split("=", 2);
+    resEnv[key] = value.join("=");
+  }
+  return resEnv;
 }
 
 //------------------------------------------------------------------------------
@@ -1259,14 +1265,12 @@ class ChildProcess extends EventEmitter {
 
     // validate options.envPairs but only if has_ipc. for some reason.
     if (has_ipc) {
-      if (options.envPairs === undefined) {
-        options.envPairs = [];
-      } else {
+      if (options.envPairs !== undefined) {
         validateArray(options.envPairs, "options.envPairs");
       }
     }
 
-    var env = options.envPairs || process.env;
+    var env = options.env || parseEnvPairs(options.envPairs) || process.env;
 
     const detachedOption = options.detached;
     this.#encoding = options.encoding || undefined;
